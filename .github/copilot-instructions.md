@@ -1,60 +1,196 @@
-<!--
-  Seed Copilot instructions for this repository.
-  Note: automated scan found no existing AI instruction files in the workspace.
-  Please update the sections marked with TODOs after a repo scan (or let the AI agent update them).
--->
-# Copilot / AI Agent Instructions (seed)
+# YaoBase AI Coding Agent Instructions
 
-Summary
-- Short goal: help an AI coding agent become productive quickly by outlining where to look, what commands to run, and which files encode architecture and workflows.
+**Project**: YaoBase - Multi-tenant distributed relational database (fork of OceanBase 0.4)  
+**Language**: C/C++ with autotools build system  
+**Architecture**: Four-tier distributed system with two-layer LSM-tree storage
 
-Quick discovery steps (run first)
-1. List top-level files and directories.
-   - Windows PowerShell: Get-ChildItem -Force -Name
-2. Search for common manifests and CI files:
-   - CMakeLists.txt, Makefile, package.json, pyproject.toml, requirements.txt, pom.xml, build.gradle, Dockerfile, docker-compose.yml, .github/workflows
-3. Run manifest-specific checks to reveal build/test commands:
-   - If `CMakeLists.txt` exists: mkdir build; cd build; cmake ..; make; make test
-   - If `Makefile` exists: make all; make test
-   - If `package.json` exists: npm ci; npm test (or inspect `scripts`)
-   - If `pyproject.toml` or requirements.txt: python -m pip install -r requirements.txt; pytest
-   - If `pom.xml` or build.gradle: mvn -q -DskipTests=false test or ./gradlew test
+## System Architecture Overview
 
-How to infer architecture
-- Look for these signals and report back with file paths and short summaries:
-  - Monorepo: top-level `packages/`, `apps/`, `services/` with nested package manifests.
-  - Services: folders with their own Dockerfile, CMakeLists.txt, or Makefile — treat as service boundaries (e.g., server/sql/, server/trans/, server/data/, server/admin/).
-  - Shared code: `libs/`, `common/`, or `core/` used by multiple services (e.g., common/ for tenant context, core/tenant/ for tenant management).
-  - Communication: presence of tenant context passing, resource stats interfaces, or cgroup integration indicates multi-tenant boundaries.
+YaoBase implements a distributed database with extreme decoupling:
 
-Developer workflows (what to extract and document)
-- Build and test commands (exact commands from manifests or CI workflows). Copy the exact commands into this file.
-- Local run / debug: how to start the app locally (single command or docker-compose). Record env vars and ports (e.g., SqlServer on port 3306, cgroup enabled via env ENABLE_CGROUP=true).
-- CI: reference `.github/workflows/*.yml` and extract relevant jobs (build/test/lint/deploy).
+### Core Components (src/)
+- **RootServer** (`src/rootserver/`) - Cluster manager: node heartbeats, metadata management, replica load balancing
+- **UpdateServer** (`src/updateserver/`) - L0 layer: MemTable + frozen SSTable for incremental data, manages transaction commits
+- **ChunkServer** (`src/chunkserver/`) - L1 layer: Baseline data in 256MB range shards, SSTable storage
+- **MergeServer** (`src/mergeserver/`) - SQL parser and distributed query execution planner
+- **Common** (`src/common/`) - Shared utilities: RPC stubs, schema management, serialization, tenant context
 
-Project-specific patterns (fill after scan)
-- Example service: `server/sql/` — build: `cd build; make sql_server`; start: `./bin/sql_server --config config/tenant_config.ini --port 3306`.
-- Example shared lib: `core/tenant/` — used by SqlServer and DataServer for tenant resource isolation (see ARCHITECTURE.md for tenant context passing).
-- Multi-tenant isolation: Always pass TenantContext in request chains; use abstract ResourceStats interface for CPU/memory/disk monitoring (see CONTRIBUTING.md for module design).
+### Key Architectural Patterns
+- **Two-layer LSM-tree**: L0 (UpdateServer incremental) + L1 (ChunkServer baseline), separated storage and merging
+- **Tenant context propagation**: `tenant_id` flows through RPC chains from MergeServer → UpdateServer/ChunkServer
+- **RPC communication**: All inter-server communication uses `ObGeneralRpcStub` (see `src/common/ob_general_rpc_stub.{h,cpp}`)
+- **Server registration**: All servers register with RootServer via heartbeat (`heartbeat_server()`, `heartbeat_merge_server()`)
 
-Integration points & external deps
-- Search for cgroup integration (Linux resource control), MySQL protocol libs, and infra files. External deps: cgroup for CPU isolation, LSM-tree storage, RAFT consensus. Cross-component: TenantContext flows from SqlServer to DataServer via request metadata.
+### Multi-Tenant Isolation (see MULTI_TENANT_ARCHITECTURE.md)
+- **Resource isolation**: CPU/memory at MergeServer (via cgroup), disk at ChunkServer
+- **Shared components**: UpdateServer is shared across tenants (auto-merges free memory)
+- **Tenant context**: Always pass `tenant_id` in request chains; use `TenantContext` struct in `src/common/`
+- **Current limitation**: Database names are globally unique (no same-name DBs across tenants yet)
 
-Integration points & external deps
-- Search for secrets management, cloud SDKs, and infra files (terraform/, k8s/). List endpoints, message brokers, or external APIs the code calls.
+## Build & Test Workflow
 
-Merging guidance (if this file already exists)
-- Preserve any human-written guidance. Only replace sections labelled `TODO` or `AUTOGENERATED`.
-- When updating commands, prefer copying literal values from package manifests or `.github/workflows` rather than guessing.
+### Initial Setup (Autotools)
+```bash
+# Generate build files
+./build.sh init
 
-When you finish
-- Update the "Project-specific patterns" and "Developer workflows" sections with exact file paths and commands.
-- Add 3 short examples (build, test, run) copied verbatim from manifests or CI.
+# Configure (release build)
+./configure --with-release
 
-Contact / Next steps
-- If you want, I (the AI agent) can now:
-  1) scan the repo and fill the TODOs automatically, or
-  2) wait for you to provide the project files to merge real examples.
+# Or debug build
+./configure
+
+# Build all
+make -j$(nproc)
+
+# Run tests
+./run_tests.sh
+./run_tests.sh --print-failed           # Show failures only
+./run_tests.sh base_main_test           # Run specific test
+```
+
+### Key Build Scripts
+- `build.sh init` - Runs aclocal, libtoolize, autoconf, automake; generates SQL parser from `src/sql/gen_parser.sh`
+- `build.sh clean` - Deep clean (removes all generated files)
+- `configure.ac` - Main autotools config; defines all subdirectories and feature flags
+- `Makefile.am` files - Distributed throughout src/tests/tools for component builds
+
+### Testing
+- `run_tests.sh` - Discovers and runs all test binaries in `tests/` subdirectories
+- `auto_tests.sh` - Automated test runner for CI
+- Tests mirror source structure: `tests/chunkserver/`, `tests/updateserver/`, etc.
+
+## C++ Coding Standards (CRITICAL)
+
+**See `.github/instructions/oceanbase-cpp-coding-standard.instructions.md` for full details**
+
+### Quick Reference
+```cpp
+// Naming
+class ObMyClass { };              // Classes: ObClassName prefix
+int my_var_;                      // Members: trailing underscore
+int local_var;                    // Locals: lowercase_with_underscores
+MY_CONSTANT                       // Constants: UPPERCASE
+
+// Namespace (matches directory structure)
+namespace yaobase {
+namespace common {  // No indentation inside namespace
+
+class ObFoo {
+  int func();
+};
+
+}  // namespace common
+}  // namespace yaobase
+
+// Resource management pattern
+class ObFoo {
+public:
+  ObFoo() : ptr_(NULL), is_inited_(false) {}
+  int init();                // Two-phase init (never throw in constructor)
+  void destroy();            // Explicit cleanup
+  void reuse();              // Reset for reuse (avoid re-allocation in loops)
+  bool is_inited() const { return is_inited_; }
+  
+private:
+  void *ptr_;
+  bool is_inited_;
+  DISALLOW_COPY_AND_ASSIGN(ObFoo);  // Always add for non-copyable classes
+};
+```
+
+### CRITICAL Rules
+- ❌ **No anonymous namespaces** (breaks debugging)
+- ❌ **No global variables** (use singletons or `ob_define.h` constants)
+- ✅ **Single entry, single exit** for all functions
+- ✅ **Two-phase init pattern**: Constructor + `init()`, explicit `destroy()`
+- ✅ **Always check return values** and parameters
+- ✅ Use `DISALLOW_COPY_AND_ASSIGN` macro for non-copyable classes
+
+## Project-Specific Patterns
+
+### RPC Communication
+```cpp
+// Pattern: All inter-server calls use ObGeneralRpcStub
+// Example from src/common/ob_general_rpc_stub.cpp
+int ObGeneralRpcStub::heartbeat_server(
+    const int64_t timeout,
+    const ObServer& root_server,
+    const ObServer& chunk_server,
+    const ObRole server_role) const
+{
+  return post_request_2(root_server, timeout, OB_HEARTBEAT, NEW_VERSION,
+                        ObTbnetCallback::default_callback, NULL,
+                        chunk_server, static_cast<int32_t>(server_role));
+}
+```
+
+### Tenant Context Pattern
+```cpp
+// Always propagate tenant_id through request chains
+struct ObRequest {
+  int64_t tenant_id_;  // Add to all request structs
+  // ... other fields
+};
+
+// In RPC handlers, extract and pass tenant context
+int handle_request(const ObRequest& req) {
+  TenantContext ctx(req.tenant_id_);
+  // Use ctx for resource accounting, isolation
+}
+```
+
+### SSTable Backup/Restore
+- **Bypass loader**: `src/chunkserver/ob_bypass_sstable_loader.{h,cpp}` - Loads SSTable via hardlinks outside normal flow
+- **Baseline backup**: `src/backupserver/ob_tablet_backup_manager.{h,cpp}` - Reference for tablet-level backup tasks
+- **Tenant backup message**: `src/common/ob_tenant_backup_msg.h` - Task structure for tenant-scoped operations
+
+## Key Files & Entry Points
+
+### Server Main Functions
+- `src/rootserver/main.cpp` - RootServer entry
+- `src/updateserver/main.cpp` - UpdateServer entry  
+- `src/chunkserver/ob_chunk_server_main.cpp` - ChunkServer entry
+- `src/mergeserver/ob_merge_server_main.cpp` - MergeServer entry
+
+### Configuration Templates
+- `script/deploy/oceanbase.conf.template` - Cluster configuration
+- `src/backupserver/backupserver.conf.template` - Backup server config
+
+### Critical Shared Code
+- `src/common/ob_packet.h` - RPC packet codes (OB_HEARTBEAT, OB_GET_UPDATE_SERVER_INFO, etc.)
+- `src/common/ob_server.h` - Server address/identity representation
+- `src/common/ob_schema_manager.h` - Schema metadata management
+- `src/sstable/` - SSTable format and readers/writers
+
+## Common Tasks
+
+### Adding RPC Support
+1. Define packet code in `src/common/ob_packet.h`
+2. Add stub method in `src/common/ob_general_rpc_stub.{h,cpp}`
+3. Implement handler in target server's `ob_*_service.cpp`
+4. Register handler in server's packet dispatcher
+
+### Multi-Tenant Feature Development
+1. Read `MULTI_TENANT_ARCHITECTURE.md` for isolation boundaries
+2. Add `tenant_id` to request/response structs
+3. Update RPC stubs to propagate tenant context
+4. Implement resource accounting at appropriate layer (MergeServer for CPU/mem, ChunkServer for disk)
+5. Add tenant-filtered queries for metadata tables
+
+### Testing New Features
+1. Add unit tests in `tests/<component>/` mirroring `src/<component>/`
+2. Use GTest framework (see existing `*_test.cpp` files)
+3. Mock servers are in `tests/*/mock_*.{h,cpp}` (e.g., `MockRootServer`)
+4. Run with `./run_tests.sh <test_name_pattern>`
+
+## External Dependencies
+
+- **Network**: yynet/libeasy (replaced old tbnet)
+- **Serialization**: Custom ObDataBuffer/ObSerializer in `src/common/`
+- **Storage**: Custom SSTable format (not RocksDB)
+- **Schema**: Internal table mechanism (no external schema files)
+- **MySQL protocol**: `src/obmysql/` implements wire protocol compatibility
 
 ---
-Generated: 2026-01-07 — seed file created because no existing AI instruction files were found during the scan.
+Generated: 2026-02-05 — Comprehensive instructions based on codebase analysis
