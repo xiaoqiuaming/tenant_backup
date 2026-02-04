@@ -80,7 +80,9 @@ pub_source =                                                                \
   ob_root_scale_task.h                 ob_root_scale_task.cpp             \
   ob_root_delete_table_rules_task.h    ob_root_delete_table_rules_task.cpp \
   ob_sys_table_revise_runnable.h	ob_sys_table_revise_runnable.cpp       \
-  ob_root_major_freeze_task.h          ob_root_major_freeze_task.cpp 
+  ob_root_major_freeze_task.h          ob_root_major_freeze_task.cpp        \
+  ob_tenant_backup_manager.h           ob_tenant_backup_manager.cpp         \
+  ob_tenant_baseline_backuper.h        ob_tenant_baseline_backuper.cpp 
 
 
 noinst_LIBRARIES = libyaoadminsvr.a
