@@ -1,0 +1,47 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop, copilot/** ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake g++ build-essential
+    
+    - name: Create build directory
+      run: mkdir -p build
+    
+    - name: Configure CMake
+      run: |
+        cd build
+        cmake ..
+    
+    - name: Build
+      run: |
+        cd build
+        make
+    
+    - name: Run demo
+      run: |
+        cd build
+        ./yaobase_tenant
+    
+    - name: Run tests
+      run: |
+        cd build
+        ./yaobase_tenant --test
+    
+    - name: Run benchmark
+      run: |
+        cd build
+        timeout 10s ./yaobase_tenant --benchmark || true

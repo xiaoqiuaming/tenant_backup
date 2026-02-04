@@ -1,0 +1,77 @@
+#!/bin/bash
+#for taobao abs
+# Usage: oceanbase-build.sh <oceanbasepath> <package> <version> <release>
+# Usage: oceanbase-build.sh
+
+REDHAT=`cat /etc/redhat-release|cut -d " " -f 7|cut -d "." -f 1`
+#REDHAT=`cat /etc/redhat-release|cut -b 22`
+if [ $# -ne 4 ]
+then
+
+	#TOP_DIR=`pwd`/../
+        TOP_DIR="/home/test002/SOURCE-main"
+        #TOP_DIR="~/yaobase_src"
+	PACKAGE=yaobase
+	VERSION=`cat oceanbase-VER.txt`
+        RELEASE="release_1.0.0.1"
+	    #RELEASE=`cat oceanbase-REL.txt`
+        if [ ${REDHAT} = "7" ];then
+	    SPEC_FILE=oceanbase_test_R7.spec
+        else
+	    SPEC_FILE=oceanbase_test.spec
+	fi
+else
+	TOP_DIR=$1
+	PACKAGE=$2
+	VERSION=$3
+	RELEASE="$4.el${REDHAT}"
+	SPEC_FILE=oceanbase.spec
+	YYLIB_ROOT=/opt/csr/common
+	EASY_ROOT=/usr
+        DRC_ROOT=/home/ds
+fi
+echo "[BUILD] args: TOP_DIR=${TOP_DIR} PACKAGE=${PACKAGE} VERSION=${VERSION} RELEASE=${RELEASE} SPEC=${SPEC_FILE}"
+echo "[BUILD] YYLIB_ROOT=${YYLIB_ROOT}"
+echo "[BUILD] EASY_ROOT=${EASY_ROOT}"
+echo "[BUILD] DRC_ROOT=${DRC_ROOT}"
+
+echo "[BUILD] config..."
+cd $TOP_DIR
+chmod +x build.sh
+sh build.sh init
+./configure  --with-test-case=no --with-release=yes --with-tblib-root=$YYLIB_ROOT --with-easy-root=$EASY_ROOT --with-drc-root=/home/ds
+#./configure  --with-test-case=no --with-release=yes  --with-drc-root=/home/ds
+echo "[BUILD] make dist..."
+make dist-gzip
+
+PREFIX=/home/admin/yaobase
+#PREFIX=~/yaobase
+TMP_DIR=${TOP_DIR}/yaobase-tmp.$$
+echo "[BUILD] TMP_DIR=${TMP_DIR}"
+echo "[BUILD] PREFIX=${PREFIX}"
+echo "[BUILD] RELEASE=${RELEASE}"
+echo "[BUILD] PACKAGE=${PACKAGE}"
+
+echo "[BUILD] create tmp dirs..."
+mkdir -p ${TMP_DIR}
+mkdir -p ${TMP_DIR}/BUILD
+mkdir -p ${TMP_DIR}/RPMS
+mkdir -p ${TMP_DIR}/SOURCES
+mkdir -p ${TMP_DIR}/SRPMS
+cp yaobase-${VERSION}.tar.gz ${TMP_DIR}/SOURCES
+cd ${TMP_DIR}/BUILD
+tar xfz ${TMP_DIR}/SOURCES/yaobase-${VERSION}.tar.gz yaobase-${VERSION}/rpm/${SPEC_FILE}
+
+echo "[BUILD] make rpms..."
+rpmbuild --define "_topdir ${TMP_DIR}" --define "REDHAT ${REDHAT}" --define "NAME ${PACKAGE}" --define "VERSION ${VERSION}" --define "_prefix ${PREFIX}" --define "RELEASE ${RELEASE}" -ba ${TMP_DIR}/BUILD/yaobase-${VERSION}/rpm/${SPEC_FILE}
+echo "[BUILD] make rpms done"
+
+cd ${TOP_DIR}
+find ${TMP_DIR}/RPMS/ -name "*.rpm" -exec mv '{}' . \;
+rm -rf ${TMP_DIR}
+mv *.rpm rpm/
+# rename rpm name
+cd ${TOP_DIR}/rpm/
+mv yaobase-1.0.0.0*.rpm yaobase-1.0.0.0.rpm
+mv yaobase-utils-1.0.0.0*.rpm yaobase-utils-1.0.0.0.rpm
+mv yaobase-devel-1.0.0.0*.rpm yaobase-devel-1.0.0.0.rpm

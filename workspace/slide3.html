@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html { background: #ffffff; }
+body {
+  width: 720pt; height: 405pt; margin: 0; padding: 0;
+  background: #f8f9fa;
+  font-family: Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 30pt 40pt;
+}
+h2 {
+  color: #ffffff;
+  font-size: 36pt;
+  margin: 0;
+  font-weight: bold;
+}
+.content {
+  flex: 1;
+  padding: 40pt;
+  display: flex;
+  gap: 30pt;
+}
+.architecture-column {
+  flex: 1;
+}
+.layer {
+  background: #ffffff;
+  border-left: 6pt solid #667eea;
+  padding: 20pt;
+  margin-bottom: 15pt;
+  border-radius: 4pt;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+}
+.layer-title {
+  color: #667eea;
+  font-size: 18pt;
+  font-weight: bold;
+  margin: 0 0 8pt 0;
+}
+.layer-desc {
+  color: #666;
+  font-size: 13pt;
+  margin: 0;
+  line-height: 1.4;
+}
+.tech-stack {
+  flex: 1;
+  background: #ffffff;
+  border-radius: 8pt;
+  padding: 25pt;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+}
+.tech-title {
+  color: #333;
+  font-size: 20pt;
+  font-weight: bold;
+  margin: 0 0 20pt 0;
+  text-align: center;
+}
+.tech-item {
+  margin-bottom: 12pt;
+}
+.tech-label {
+  color: #667eea;
+  font-size: 14pt;
+  font-weight: bold;
+  margin: 0 0 4pt 0;
+}
+.tech-value {
+  color: #666;
+  font-size: 13pt;
+  margin: 0;
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <h2>系统架构</h2>
+</div>
+<div class="content">
+  <div class="architecture-column">
+    <div class="layer">
+      <p class="layer-title">服务层</p>
+      <p class="layer-desc">SqlServer、DataServer、TransServer、AdminServer</p>
+    </div>
+    <div class="layer">
+      <p class="layer-title">核心层</p>
+      <p class="layer-desc">TenantManager、ResourceManager</p>
+    </div>
+    <div class="layer">
+      <p class="layer-title">通用层</p>
+      <p class="layer-desc">ConfigManager、Utils</p>
+    </div>
+  </div>
+  <div class="tech-stack">
+    <p class="tech-title">技术栈</p>
+    <div class="tech-item">
+      <p class="tech-label">编程语言</p>
+      <p class="tech-value">C++17</p>
+    </div>
+    <div class="tech-item">
+      <p class="tech-label">资源隔离</p>
+      <p class="tech-value">Linux cgroup v2</p>
+    </div>
+    <div class="tech-item">
+      <p class="tech-label">存储引擎</p>
+      <p class="tech-value">LSM-tree</p>
+    </div>
+    <div class="tech-item">
+      <p class="tech-label">一致性</p>
+      <p class="tech-value">RAFT consensus</p>
+    </div>
+    <div class="tech-item">
+      <p class="tech-label">测试框架</p>
+      <p class="tech-value">GoogleTest</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>
