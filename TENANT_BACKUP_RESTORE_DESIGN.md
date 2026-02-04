@@ -4,6 +4,23 @@
 **日期**: 2026-02-05  
 **状态**: 设计阶段
 
+---
+
+## 重要说明
+
+**架构约束**: 本设计中的备份恢复功能运行在**原集群**中，不使用独立的BackupServer进程。所有备份恢复组件集成到现有的服务器节点中：
+- **RootServer**: 运行备份恢复协调器（ObTenantBackupManager, ObTenantRestoreCoordinator）和DAG调度器
+- **DataServer (ChunkServer)**: 直接提供SSTable备份接口
+- **TransServer (UpdateServer)**: 内置增量日志备份器（ObTenantIncrementalBackuper）
+- **通用工具**: Schema重写器、有序队列等放在 `src/common/` 目录
+
+**接口参考**: 虽然不使用BackupServer进程，但设计时可以参考 `src/backupserver/` 中的接口定义，如：
+- `ob_tablet_backup_manager.h` - tablet备份接口设计
+- `ob_backup_server.h` - BackupMode枚举、任务结构
+- `ob_bypass_sstable_loader.h` - SSTable加载机制（位于chunkserver）
+
+---
+
 ## 目录
 - [1. 概述](#1-概述)
 - [2. 设计目标与约束](#2-设计目标与约束)
@@ -141,7 +158,10 @@ YaoBase是一个多租户分布式数据库系统，采用两层LSM-tree架构�
 
 #### 3.2.1 ObTenantBackupManager
 
-租户备份恢复的中央协调器，运行在AdminServer节点。
+租户备份恢复的中央协调器，运行在RootServer节点（原集群）。
+
+**位置**: `src/rootserver/ob_tenant_backup_manager.h`  
+**参考**: 可参考 `src/backupserver/ob_tablet_backup_manager.h` 的接口设计
 
 **职责**：
 - 管理租户级备份恢复任务生命周期
@@ -151,6 +171,7 @@ YaoBase是一个多租户分布式数据库系统，采用两层LSM-tree架构�
 
 **接口**：
 ```cpp
+// src/rootserver/ob_tenant_backup_manager.h
 class ObTenantBackupManager {
 public:
   // 创建全量备份任务
@@ -173,7 +194,10 @@ public:
 
 #### 3.2.2 ObTenantBaselineBackuper
 
-基线备份器，负责L1层SSTable的备份。
+基线备份器，负责L1层SSTable的备份，运行在RootServer。
+
+**位置**: `src/rootserver/ob_tenant_baseline_backuper.h`  
+**参考**: 可参考 `src/backupserver/ob_tablet_backup_manager.{h,cpp}` 和 `src/chunkserver/ob_bypass_sstable_loader.h`
 
 **职责**：
 - 遍历租户的所有tablet
@@ -183,6 +207,7 @@ public:
 
 **关键逻辑**：
 ```cpp
+// src/rootserver/ob_tenant_baseline_backuper.h
 class ObTenantBaselineBackuper {
 public:
   int backup_tenant_baseline(int64_t tenant_id, int64_t frozen_version);
@@ -201,7 +226,10 @@ private:
 
 #### 3.2.3 ObTenantIncrementalBackuper
 
-增量备份器，持续备份TransServer的commit log。
+增量备份器，持续备份TransServer的commit log，运行在TransServer内部。
+
+**位置**: `src/updateserver/ob_tenant_incremental_backuper.h`  
+**参考**: 可参考 `src/backupserver/` 中的日志归档接口
 
 **职责**：
 - 实时订阅TransServer的commit log
@@ -211,6 +239,7 @@ private:
 
 **关键逻辑**：
 ```cpp
+// src/updateserver/ob_tenant_incremental_backuper.h
 class ObTenantIncrementalBackuper : public yysys::CDefaultRunnable {
 public:
   int start_incremental_backup(int64_t tenant_id);
@@ -233,7 +262,10 @@ private:
 
 #### 3.2.4 ObTenantRestoreCoordinator
 
-恢复协调器，负责编排基线+增量的恢复流程。
+恢复协调器，负责编排基线+增量的恢复流程，运行在RootServer。
+
+**位置**: `src/rootserver/ob_tenant_restore_coordinator.h`  
+**参考**: 可参考 `src/backupserver/` 中的恢复流程接口
 
 **职责**：
 - 创建备租户的schema（新的table_id）
@@ -243,6 +275,7 @@ private:
 
 **关键流程**：
 ```cpp
+// src/rootserver/ob_tenant_restore_coordinator.h
 class ObTenantRestoreCoordinator {
 public:
   // 主恢复流程
@@ -265,7 +298,10 @@ private:
 
 #### 3.2.5 ObSchemaRewriter
 
-Schema重写器，处理备租户的schema映射。
+Schema重写器，处理备租户的schema映射，运行在恢复流程中。
+
+**位置**: `src/common/ob_tenant_schema_rewriter.h`（通用工具类）  
+**参考**: 可参考 `src/backupserver/` 中的schema处理逻辑
 
 **职责**：
 - 映射源租户table_id到备租户table_id
@@ -274,6 +310,7 @@ Schema重写器，处理备租户的schema映射。
 
 **核心逻辑**：
 ```cpp
+// src/common/ob_tenant_schema_rewriter.h
 class ObSchemaRewriter {
 public:
   // 创建schema映射关系
@@ -297,7 +334,9 @@ private:
 
 #### 3.2.6 ObBackupDagScheduler
 
-DAG任务调度器，管理复杂的依赖任务流。
+DAG任务调度器，管理复杂的依赖任务流，运行在RootServer。
+
+**位置**: `src/rootserver/ob_backup_dag_scheduler.h`
 
 **职责**：
 - 将备份恢复任务分解为DAG图
@@ -498,6 +537,7 @@ TransServer                   IncrBackuper              备份存储
 
 ```cpp
 // src/updateserver/ob_tenant_log_filter.h
+// 参考: src/backupserver/ 中的日志处理接口
 
 class ObTenantLogFilter {
 public:
@@ -523,7 +563,8 @@ private:
 ##### 日志归档器
 
 ```cpp
-// src/backupserver/ob_tenant_log_archiver.h
+// src/updateserver/ob_tenant_log_archiver.h
+// 参考: src/backupserver/ob_tenant_log_archiver.h（如果存在）
 
 class ObTenantLogArchiver {
 public:
@@ -657,7 +698,8 @@ struct ObIncrementalBackupMeta {
 **解决方案**: 建立schema映射表，在恢复时重写。
 
 ```cpp
-// src/backupserver/ob_tenant_schema_rewriter.h
+// src/common/ob_tenant_schema_rewriter.h
+// 参考: src/backupserver/ 中可能存在的schema重写接口
 
 class ObTenantSchemaRewriter {
 public:
@@ -803,7 +845,8 @@ int ObTenantSchemaRewriter::rewrite_commit_log(
 #### 5.2.3 备租户恢复协调
 
 ```cpp
-// src/backupserver/ob_tenant_restore_coordinator.h
+// src/rootserver/ob_tenant_restore_coordinator.h
+// 参考: src/backupserver/ 中可能存在的恢复协调接口
 
 class ObTenantRestoreCoordinator {
 public:
@@ -915,7 +958,8 @@ struct ObRestoreResourceLimit {
 ##### Reader Thread - 日志读取线程
 
 ```cpp
-// src/backupserver/ob_log_restore_reader.h
+// src/rootserver/ob_log_restore_reader.h
+// 参考: src/backupserver/ 中可能存在的日志读取接口
 
 class ObLogRestoreReader : public yysys::CDefaultRunnable {
 public:
@@ -975,7 +1019,8 @@ struct ObRawLogEntry {
 ##### Worker Threads - 并行处理线程池
 
 ```cpp
-// src/backupserver/ob_log_restore_worker.h
+// src/rootserver/ob_log_restore_worker.h
+// 参考: src/backupserver/ 中可能存在的worker接口
 
 class ObLogRestoreWorker : public yysys::CDefaultRunnable {
 public:
@@ -1048,7 +1093,7 @@ struct ObRewrittenLogEntry {
 ##### Reordered Queue - 有序队列（关键）
 
 ```cpp
-// src/backupserver/ob_reordered_log_queue.h
+// src/common/ob_reordered_log_queue.h（通用工具类）
 
 /**
  * 有序日志队列：保证输出的日志按log_id严格递增
@@ -1172,7 +1217,8 @@ int ObReorderedLogQueue::pop(ObRewrittenLogEntry& entry, int64_t timeout_us) {
 ##### Applier Thread - 顺序应用线程
 
 ```cpp
-// src/backupserver/ob_log_restore_applier.h
+// src/rootserver/ob_log_restore_applier.h
+// 参考: src/backupserver/ 中可能存在的日志应用接口
 
 class ObLogRestoreApplier : public yysys::CDefaultRunnable {
 public:
@@ -1391,7 +1437,8 @@ struct ObRawLogEntry {
 #### 5.3.4 完整流水线的协调器
 
 ```cpp
-// src/backupserver/ob_incremental_restore_pipeline.h
+// src/rootserver/ob_incremental_restore_pipeline.h
+// 参考: src/backupserver/ 中可能存在的restore pipeline接口
 
 class ObIncrementalRestorePipeline {
 public:
@@ -2005,7 +2052,8 @@ private:
 ### 6.2 DAG调度器设计
 
 ```cpp
-// src/backupserver/ob_backup_dag_scheduler.h
+// src/rootserver/ob_backup_dag_scheduler.h
+// 参考: src/backupserver/ 中可能存在的DAG调度接口
 
 class ObBackupDagScheduler {
 public:
@@ -2058,7 +2106,8 @@ private:
 ### 6.3 DAG任务基类
 
 ```cpp
-// src/backupserver/ob_backup_dag.h
+// src/rootserver/ob_backup_dag.h
+// 参考: src/backupserver/ 中可能存在的DAG任务定义
 
 // DAG任务接口
 class ObDagTask {
@@ -2864,12 +2913,13 @@ private:
 #### 9.1.1 Backup接口
 
 ```cpp
-// src/backupserver/ob_tenant_backup_manager.h
+// src/rootserver/ob_tenant_backup_manager.h
+// 参考: src/backupserver/ob_tablet_backup_manager.h 的接口设计
 
 class ObTenantBackupManager {
 public:
-  // 初始化
-  int init(ObBackupServer* backup_server);
+  // 初始化（不再需要ObBackupServer参数，运行在RootServer中）
+  int init(ObRootServer* root_server);
   
   // 全量备份
   int start_full_backup(const ObFullBackupParams& params,
@@ -3199,12 +3249,17 @@ restore_io_bandwidth_limit = 80
 
 ### 10.3 交付物
 
-1. **代码**：
-   - `src/backupserver/ob_tenant_backup_manager.*`
-   - `src/backupserver/ob_tenant_restore_manager.*`
-   - `src/backupserver/ob_backup_dag_scheduler.*`
-   - `src/backupserver/ob_tenant_schema_rewriter.*`
+1. **代码**（主要组件在原集群节点中）：
+   - `src/rootserver/ob_tenant_backup_manager.*` - 备份管理器（RootServer）
+   - `src/rootserver/ob_tenant_restore_coordinator.*` - 恢复协调器（RootServer）
+   - `src/rootserver/ob_backup_dag_scheduler.*` - DAG调度器（RootServer）
+   - `src/rootserver/ob_tenant_baseline_backuper.*` - 基线备份器
+   - `src/updateserver/ob_tenant_incremental_backuper.*` - 增量备份器（TransServer）
+   - `src/updateserver/ob_tenant_log_filter.*` - 日志过滤器
+   - `src/common/ob_tenant_schema_rewriter.*` - Schema重写器（通用工具）
+   - `src/common/ob_reordered_log_queue.*` - 有序日志队列
    - 其他相关组件
+   - **注**: 可参考 `src/backupserver/` 中的接口设计
 
 2. **文档**：
    - 《YaoBase多租户备份恢复用户手册》
