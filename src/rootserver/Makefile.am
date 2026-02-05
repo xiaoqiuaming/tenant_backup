@@ -88,7 +88,8 @@ pub_source =                                                                \
   ob_log_restore_reader.h              ob_log_restore_reader.cpp            \
   ob_log_restore_worker.h              ob_log_restore_worker.cpp            \
   ob_log_restore_applier.h             ob_log_restore_applier.cpp           \
-  ob_tenant_promotion_manager.h        ob_tenant_promotion_manager.cpp 
+  ob_tenant_promotion_manager.h        ob_tenant_promotion_manager.cpp      \
+  ob_baseline_restore_executor.h       ob_baseline_restore_executor.cpp 
 
 
 noinst_LIBRARIES = libyaoadminsvr.a
