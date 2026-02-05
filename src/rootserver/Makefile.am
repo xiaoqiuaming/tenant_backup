@@ -82,7 +82,9 @@ pub_source =                                                                \
   ob_sys_table_revise_runnable.h	ob_sys_table_revise_runnable.cpp       \
   ob_root_major_freeze_task.h          ob_root_major_freeze_task.cpp        \
   ob_tenant_backup_manager.h           ob_tenant_backup_manager.cpp         \
-  ob_tenant_baseline_backuper.h        ob_tenant_baseline_backuper.cpp 
+  ob_tenant_baseline_backuper.h        ob_tenant_baseline_backuper.cpp      \
+  ob_tenant_restore_coordinator.h      ob_tenant_restore_coordinator.cpp    \
+  ob_backup_dag_scheduler.h            ob_backup_dag_scheduler.cpp 
 
 
 noinst_LIBRARIES = libyaoadminsvr.a
