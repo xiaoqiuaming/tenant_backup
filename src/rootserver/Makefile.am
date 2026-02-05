@@ -84,7 +84,10 @@ pub_source =                                                                \
   ob_tenant_backup_manager.h           ob_tenant_backup_manager.cpp         \
   ob_tenant_baseline_backuper.h        ob_tenant_baseline_backuper.cpp      \
   ob_tenant_restore_coordinator.h      ob_tenant_restore_coordinator.cpp    \
-  ob_backup_dag_scheduler.h            ob_backup_dag_scheduler.cpp 
+  ob_backup_dag_scheduler.h            ob_backup_dag_scheduler.cpp          \
+  ob_log_restore_reader.h              ob_log_restore_reader.cpp            \
+  ob_log_restore_worker.h              ob_log_restore_worker.cpp            \
+  ob_log_restore_applier.h             ob_log_restore_applier.cpp 
 
 
 noinst_LIBRARIES = libyaoadminsvr.a
