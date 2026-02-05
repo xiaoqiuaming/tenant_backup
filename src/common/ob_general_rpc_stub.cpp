@@ -1403,5 +1403,302 @@ namespace oceanbase
       return ret;
     }
 
+    // Tenant backup/restore RPC implementations
+    int ObGeneralRpcStub::tenant_backup_start(
+        const int64_t timeout, const ObServer &root_server,
+        const int64_t tenant_id, const char *backup_dest,
+        int64_t &task_id) const
+    {
+      int ret = OB_SUCCESS;
+      ObDataBuffer data_buff;
+      ret = get_thread_buffer_(data_buff);
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = serialization::encode_vi64(data_buff.get_data(), data_buff.get_capacity(),
+                                        data_buff.get_position(), tenant_id);
+      }
+      
+      if (OB_SUCCESS == ret && backup_dest != NULL)
+      {
+        ObString backup_path;
+        backup_path.assign_ptr(const_cast<char*>(backup_dest), static_cast<int32_t>(strlen(backup_dest)));
+        ret = backup_path.serialize(data_buff.get_data(), data_buff.get_capacity(),
+                                   data_buff.get_position());
+      }
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = send_1_return_1_(root_server, timeout, OB_TENANT_BACKUP_START, DEFAULT_VERSION,
+                              data_buff, task_id);
+      }
+      
+      return ret;
+    }
+    
+    int ObGeneralRpcStub::tenant_backup_status(
+        const int64_t timeout, const ObServer &root_server,
+        const int64_t task_id, int32_t &status,
+        int64_t &progress) const
+    {
+      int ret = OB_SUCCESS;
+      ObDataBuffer data_buff;
+      ret = get_thread_buffer_(data_buff);
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = serialization::encode_vi64(data_buff.get_data(), data_buff.get_capacity(),
+                                        data_buff.get_position(), task_id);
+      }
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = send_1_return_2_(root_server, timeout, OB_TENANT_BACKUP_STATUS, DEFAULT_VERSION,
+                              data_buff, status, progress);
+      }
+      
+      return ret;
+    }
+    
+    int ObGeneralRpcStub::tenant_incremental_backup_start(
+        const int64_t timeout, const ObServer &update_server,
+        const int64_t tenant_id, const char *archive_dest,
+        const int64_t start_log_id, int64_t &task_id) const
+    {
+      int ret = OB_SUCCESS;
+      ObDataBuffer data_buff;
+      ret = get_thread_buffer_(data_buff);
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = serialization::encode_vi64(data_buff.get_data(), data_buff.get_capacity(),
+                                        data_buff.get_position(), tenant_id);
+      }
+      
+      if (OB_SUCCESS == ret && archive_dest != NULL)
+      {
+        ObString archive_path;
+        archive_path.assign_ptr(const_cast<char*>(archive_dest), static_cast<int32_t>(strlen(archive_dest)));
+        ret = archive_path.serialize(data_buff.get_data(), data_buff.get_capacity(),
+                                    data_buff.get_position());
+      }
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = serialization::encode_vi64(data_buff.get_data(), data_buff.get_capacity(),
+                                        data_buff.get_position(), start_log_id);
+      }
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = send_1_return_1_(update_server, timeout, OB_TENANT_INCREMENTAL_BACKUP_START,
+                              DEFAULT_VERSION, data_buff, task_id);
+      }
+      
+      return ret;
+    }
+    
+    int ObGeneralRpcStub::tenant_incremental_backup_stop(
+        const int64_t timeout, const ObServer &update_server,
+        const int64_t tenant_id) const
+    {
+      int ret = OB_SUCCESS;
+      ObDataBuffer data_buff;
+      ret = get_thread_buffer_(data_buff);
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = serialization::encode_vi64(data_buff.get_data(), data_buff.get_capacity(),
+                                        data_buff.get_position(), tenant_id);
+      }
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = send_0_return_0(update_server, timeout, OB_TENANT_INCREMENTAL_BACKUP_STOP,
+                             DEFAULT_VERSION, data_buff);
+      }
+      
+      return ret;
+    }
+    
+    int ObGeneralRpcStub::tenant_restore_start(
+        const int64_t timeout, const ObServer &root_server,
+        const int64_t src_tenant_id, const int64_t dest_tenant_id,
+        const int64_t backup_set_id, const int64_t restore_timestamp,
+        const char *backup_dest, int64_t &task_id) const
+    {
+      int ret = OB_SUCCESS;
+      ObDataBuffer data_buff;
+      ret = get_thread_buffer_(data_buff);
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = serialization::encode_vi64(data_buff.get_data(), data_buff.get_capacity(),
+                                        data_buff.get_position(), src_tenant_id);
+      }
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = serialization::encode_vi64(data_buff.get_data(), data_buff.get_capacity(),
+                                        data_buff.get_position(), dest_tenant_id);
+      }
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = serialization::encode_vi64(data_buff.get_data(), data_buff.get_capacity(),
+                                        data_buff.get_position(), backup_set_id);
+      }
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = serialization::encode_vi64(data_buff.get_data(), data_buff.get_capacity(),
+                                        data_buff.get_position(), restore_timestamp);
+      }
+      
+      if (OB_SUCCESS == ret && backup_dest != NULL)
+      {
+        ObString backup_path;
+        backup_path.assign_ptr(const_cast<char*>(backup_dest), static_cast<int32_t>(strlen(backup_dest)));
+        ret = backup_path.serialize(data_buff.get_data(), data_buff.get_capacity(),
+                                   data_buff.get_position());
+      }
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = send_1_return_1_(root_server, timeout, OB_TENANT_RESTORE_START, DEFAULT_VERSION,
+                              data_buff, task_id);
+      }
+      
+      return ret;
+    }
+    
+    int ObGeneralRpcStub::tenant_restore_status(
+        const int64_t timeout, const ObServer &root_server,
+        const int64_t task_id, int32_t &status,
+        int64_t &progress) const
+    {
+      int ret = OB_SUCCESS;
+      ObDataBuffer data_buff;
+      ret = get_thread_buffer_(data_buff);
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = serialization::encode_vi64(data_buff.get_data(), data_buff.get_capacity(),
+                                        data_buff.get_position(), task_id);
+      }
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = send_1_return_2_(root_server, timeout, OB_TENANT_RESTORE_STATUS, DEFAULT_VERSION,
+                              data_buff, status, progress);
+      }
+      
+      return ret;
+    }
+    
+    int ObGeneralRpcStub::tenant_promote_standby(
+        const int64_t timeout, const ObServer &root_server,
+        const int64_t standby_tenant_id,
+        const int64_t primary_tenant_id,
+        const bool verify_data) const
+    {
+      int ret = OB_SUCCESS;
+      ObDataBuffer data_buff;
+      ret = get_thread_buffer_(data_buff);
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = serialization::encode_vi64(data_buff.get_data(), data_buff.get_capacity(),
+                                        data_buff.get_position(), standby_tenant_id);
+      }
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = serialization::encode_vi64(data_buff.get_data(), data_buff.get_capacity(),
+                                        data_buff.get_position(), primary_tenant_id);
+      }
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = serialization::encode_bool(data_buff.get_data(), data_buff.get_capacity(),
+                                        data_buff.get_position(), verify_data);
+      }
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = send_0_return_0(root_server, timeout, OB_TENANT_PROMOTE_STANDBY, DEFAULT_VERSION,
+                             data_buff);
+      }
+      
+      return ret;
+    }
+    
+    int ObGeneralRpcStub::tenant_decommission(
+        const int64_t timeout, const ObServer &root_server,
+        const int64_t tenant_id, const bool read_only) const
+    {
+      int ret = OB_SUCCESS;
+      ObDataBuffer data_buff;
+      ret = get_thread_buffer_(data_buff);
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = serialization::encode_vi64(data_buff.get_data(), data_buff.get_capacity(),
+                                        data_buff.get_position(), tenant_id);
+      }
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = serialization::encode_bool(data_buff.get_data(), data_buff.get_capacity(),
+                                        data_buff.get_position(), read_only);
+      }
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = send_0_return_0(root_server, timeout, OB_TENANT_DECOMMISSION, DEFAULT_VERSION,
+                             data_buff);
+      }
+      
+      return ret;
+    }
+    
+    int ObGeneralRpcStub::tenant_backup_tablet(
+        const int64_t timeout, const ObServer &chunk_server,
+        const int64_t tenant_id, const int64_t tablet_id,
+        const char *backup_dest, int64_t &checksum) const
+    {
+      int ret = OB_SUCCESS;
+      ObDataBuffer data_buff;
+      ret = get_thread_buffer_(data_buff);
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = serialization::encode_vi64(data_buff.get_data(), data_buff.get_capacity(),
+                                        data_buff.get_position(), tenant_id);
+      }
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = serialization::encode_vi64(data_buff.get_data(), data_buff.get_capacity(),
+                                        data_buff.get_position(), tablet_id);
+      }
+      
+      if (OB_SUCCESS == ret && backup_dest != NULL)
+      {
+        ObString backup_path;
+        backup_path.assign_ptr(const_cast<char*>(backup_dest), static_cast<int32_t>(strlen(backup_dest)));
+        ret = backup_path.serialize(data_buff.get_data(), data_buff.get_capacity(),
+                                   data_buff.get_position());
+      }
+      
+      if (OB_SUCCESS == ret)
+      {
+        ret = send_1_return_1_(chunk_server, timeout, OB_TENANT_BACKUP_TABLET, DEFAULT_VERSION,
+                              data_buff, checksum);
+      }
+      
+      return ret;
+    }
+
   } // end namespace chunkserver
 } // end namespace oceanbase

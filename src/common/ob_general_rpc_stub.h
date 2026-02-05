@@ -246,7 +246,7 @@ namespace oceanbase
             ObVersionRange &new_range) const; //add zhaoqiong [Truncate Table]:20160318
 
         //add liuxiao [secondary index col checksum] 20150401
-        //»ñÈ¡ÉÏÒ»´Î¼ÆËã¹ýÁËµÄÁÐÐ£ÑéºÍ
+        //ï¿½ï¿½È¡ï¿½ï¿½Ò»ï¿½Î¼ï¿½ï¿½ï¿½ï¿½ï¿½Ëµï¿½ï¿½ï¿½Ð£ï¿½ï¿½ï¿½
         //mod liumz, [paxos static index]20170626:b
         //int get_old_tablet_column_checksum(const int64_t timeout, const ObServer & root_server,const ObNewRange new_range,const int64_t version,col_checksum& column_checksum);
         //delete for [secondary index get old cchecksum opt]-b
@@ -493,6 +493,43 @@ namespace oceanbase
         int get_ups_log_seq(const common::ObServer &ups, const int64_t timeout, int64_t & log_seq) const;
         int set_obi_role(const ObServer &rs, const int64_t timeout, const ObiRole &obi_role) const;
         int set_master_rs_vip_port_to_cluster(const ObServer &rs, const int64_t timeout, const char *new_master_ip, const int32_t new_master_port) const;
+
+        // Tenant backup/restore RPCs
+        int tenant_backup_start(const int64_t timeout, const ObServer &root_server,
+                               const int64_t tenant_id, const char *backup_dest,
+                               int64_t &task_id) const;
+        
+        int tenant_backup_status(const int64_t timeout, const ObServer &root_server,
+                                const int64_t task_id, int32_t &status,
+                                int64_t &progress) const;
+        
+        int tenant_incremental_backup_start(const int64_t timeout, const ObServer &update_server,
+                                           const int64_t tenant_id, const char *archive_dest,
+                                           const int64_t start_log_id, int64_t &task_id) const;
+        
+        int tenant_incremental_backup_stop(const int64_t timeout, const ObServer &update_server,
+                                          const int64_t tenant_id) const;
+        
+        int tenant_restore_start(const int64_t timeout, const ObServer &root_server,
+                                const int64_t src_tenant_id, const int64_t dest_tenant_id,
+                                const int64_t backup_set_id, const int64_t restore_timestamp,
+                                const char *backup_dest, int64_t &task_id) const;
+        
+        int tenant_restore_status(const int64_t timeout, const ObServer &root_server,
+                                 const int64_t task_id, int32_t &status,
+                                 int64_t &progress) const;
+        
+        int tenant_promote_standby(const int64_t timeout, const ObServer &root_server,
+                                   const int64_t standby_tenant_id,
+                                   const int64_t primary_tenant_id,
+                                   const bool verify_data) const;
+        
+        int tenant_decommission(const int64_t timeout, const ObServer &root_server,
+                               const int64_t tenant_id, const bool read_only) const;
+        
+        int tenant_backup_tablet(const int64_t timeout, const ObServer &chunk_server,
+                                const int64_t tenant_id, const int64_t tablet_id,
+                                const char *backup_dest, int64_t &checksum) const;
 
       protected:
         // default cmd version

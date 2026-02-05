@@ -333,7 +333,12 @@ ttmathuint_x86_64.h	ttmathuint_x86.h\
   pthread_key_impl.h                pthread_key_impl.cpp  \
  ob_black_list.h	ob_black_list.cpp skiplist.h  \
  ob_gather_table_info.h    ob_gather_table_info.cpp \
- ob_hardcode_expression.h    ob_hardcode_expression.cpp
+ ob_hardcode_expression.h    ob_hardcode_expression.cpp \
+ ob_tenant_backup_msg.h \
+ ob_tenant_schema_rewriter.h      ob_tenant_schema_rewriter.cpp \
+ ob_reordered_log_queue.h         ob_reordered_log_queue.cpp \
+ ob_tenant_backup_tables.h \
+ ob_tenant_backup_table_mgr.h     ob_tenant_backup_table_mgr.cpp
 
 
 location_sources=                                                                             \
