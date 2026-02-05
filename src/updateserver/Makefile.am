@@ -115,7 +115,9 @@ libyaotxnsvr_a_SOURCES =                                                 \
   ob_util_interface.h                                                       \
   clog_status.h                     clog_status.cpp                         \
   clog_monitor.h                                                            \
-  ob_inc_seq.h                      ob_inc_seq.cpp
+  ob_inc_seq.h                      ob_inc_seq.cpp                          \
+  ob_tenant_log_filter.h            ob_tenant_log_filter.cpp                \
+  ob_tenant_incremental_backuper.h  ob_tenant_incremental_backuper.cpp
 
 bin_PROGRAMS = yaotxnsvr yao_ping clog_monitor
 yaotxnsvr_SOURCES = main.cpp ${libyaotxnsvr_a_SOURCES}
