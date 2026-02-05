@@ -336,7 +336,9 @@ ttmathuint_x86_64.h	ttmathuint_x86.h\
  ob_hardcode_expression.h    ob_hardcode_expression.cpp \
  ob_tenant_backup_msg.h \
  ob_tenant_schema_rewriter.h      ob_tenant_schema_rewriter.cpp \
- ob_reordered_log_queue.h         ob_reordered_log_queue.cpp
+ ob_reordered_log_queue.h         ob_reordered_log_queue.cpp \
+ ob_tenant_backup_tables.h \
+ ob_tenant_backup_table_mgr.h     ob_tenant_backup_table_mgr.cpp
 
 
 location_sources=                                                                             \
